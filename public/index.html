@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link rel="stylesheet" type="text/css" href="styles.css">
+        <script
+            src="https://cdn.socket.io/4.5.3/socket.io.min.js"
+            integrity="sha384-WPFUvHkB1aHA5TDSZi6xtDgkF0wXJcIIxXhC6h8OT8EH3fC5PWro5pWJ1THjcfEi"
+            crossorigin="anonymous"
+            ></script>
+    </head>
+    <body>
+        <div id="main">
+            <div class="hero">
+                <img class="logo" src="logo.svg">
+            </div>
+            <div id="content">
+                <br>
+                <div class="centered">
+                  <select id="model" onchange="modelChanged()">
+                    <option value="listener">Listener</option>
+                    <option value="medic">Medic</option>
+                    <option value="therapist">Therapist</option>
+                    <option value="critic">Critic</option>
+                    <option value="brainstorm">Brainstorm</option>
+                    <option value="recipes">Recipes</option>
+                    <option value="songwriter">Songwriter</option>
+                    <option value="deepgram">Deepgram</option>
+                  </select>
+                  <h3 style="margin-top: 16px;">For entertainment purposes only</h3>
+                </div>
+                <div id="conversation">
+                    
+                </div>
+                <div class="spacer">&nbsp;</div>
+            </div>
+            <div class="gradientback"></div>
+        </div>
+        <div class="recorder" onclick="toggleRecording()">
+            <img id="mic" src="mic_off.png" width="50px">
+        </div>
+        <script src="script.js"></script>
+    </body>
+</html>
