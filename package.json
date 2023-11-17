@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "@deepgram/sdk": "^1.21.0",
+    "audio-buffer-from": "^1.1.1",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "http": "0.0.1-security",

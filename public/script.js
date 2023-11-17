@@ -9,8 +9,33 @@ let recording = false;
 let socketId = null;
 const apiOrigin = "http://localhost:3000";
 const wssOrigin = "http://localhost:3000";
-// const apiOrigin = "https://satori-ai.glitch.me";
-// const wssOrigin = "wss://satori-ai.glitch.me/";
+
+var audio_file = document.getElementById("audio_file");
+
+async function updateAudio(text){
+    let audio = document.createElement('audio');
+    audio.setAttribute('controls', '');
+    audio.setAttribute('autoplay', 'true');
+    let source = document.createElement('source');
+
+    let response = await getAudioForText(text);
+    let data = await response.blob();
+    const url = URL.createObjectURL(data);
+    source.setAttribute('src', url);
+
+    source.setAttribute('type', 'audio/mp3');
+
+    audio.appendChild(source);
+
+    audio_file.innerHTML = '';
+    audio_file.appendChild(audio);
+}
+
+async function getAudioForText(text){
+    const url = apiOrigin + '/speak?text=' + text;
+
+    return await fetch(url)
+}
 
 navigator.mediaDevices
   .getUserMedia({ audio: true })
@@ -68,6 +93,7 @@ async function promptAI(socketId, msg) {
     // Make sure to configure your OpenAI API Key in config.json for this to work
     if(data && !data.err){
       let reply = data.response.data.content;
+      updateAudio(reply);
       addText(reply, true);
     } else {
       alert('Error: You must configure your OpenAI API Key in the config.json to use the "Respond with AI" feature.');

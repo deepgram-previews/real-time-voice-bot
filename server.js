@@ -18,6 +18,8 @@ let socket;
 let dgLiveObjs = {};
 let globalSockets = {};
 let openAIChats = {};
+let TTS_API = 'https://api.beta.deepgram.com/v1/speak';
+let PORT = 3000;
 
 async function promptAI(socketId, model, message){
   const response = await openAIChats[socketId].call([
@@ -31,6 +33,47 @@ async function promptAI(socketId, model, message){
   console.log(response);
   return response;
 }
+
+async function readAllChunks(readableStream) {
+  const reader = readableStream.getReader();
+  const chunks = [];
+  
+  let done, value;
+  while (!done) {
+    ({ value, done } = await reader.read());
+    if (done) {
+      return chunks;
+    }
+    chunks.push(value);
+  }
+}
+
+async function getTextToSpeech(message){
+  const response = await fetch(TTS_API, {
+    method: 'POST',
+    headers: {
+      'authorization': `token ${process.env.DEEPGRAM_API_KEY}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({text: message})
+  });
+  return response.blob();
+}
+
+const createNewDeepgram = () => {
+  return new Deepgram(process.env.DEEPGRAM_API_KEY);
+};
+
+const createNewDeepgramLive = (dg) => {
+  return dg.transcription.live({
+    language: "en",
+    punctuate: true,
+    smart_format: true,
+    model: "nova",
+    interim_results: false,
+    endpointing: false
+  });
+};
 
 const app = express();
 app.use(express.static("public/"));
@@ -54,6 +97,27 @@ app.get("/chat", async (req, res) => {
     let response = await promptAI(socketId, model, message);
 
     res.send({ response });
+  } catch (err) {
+    console.log(err);
+    res.status(500).send({ err: err.message ? err.message : err });
+  }
+});
+
+app.get("/speak", async (req, res) => {
+  // Respond with error if no API Key set
+  if(!process.env.DEEPGRAM_API_KEY){
+    res.status(500).send({ err: 'No DEEPGRAM_API_KEY set in the .env file' });
+    return;
+  }
+  let text = req.query.text;
+
+  try {
+    let response = await getTextToSpeech(text);
+
+    res.type(response.type)
+    response.arrayBuffer().then((buf) => {
+        res.send(Buffer.from(buf))
+    });
   } catch (err) {
     console.log(err);
     res.status(500).send({ err: err.message ? err.message : err });
@@ -100,6 +164,7 @@ const createWebsocket = () => {
         dgLiveObjs[socketId].removeAllListeners();
         delete dgLiveObjs[socketId];
         delete openAIChats[socketId];
+        delete speechChunks[socketId];
       });
 
       globalSockets[socketId].emit("socketId", socketId);
@@ -107,51 +172,58 @@ const createWebsocket = () => {
   }
 }; 
 
-const createNewDeepgram = () => {
-  return new Deepgram(process.env.DEEPGRAM_API_KEY);
-};
-
-const createNewDeepgramLive = (dg) => {
-  return dg.transcription.live({
-    language: "en",
-    punctuate: true,
-    smart_format: true,
-    model: "nova",
-  });
-};
-
+let speechChunks = {};
 const addDeepgramTranscriptListener = (socketId) => {
   let _socketId = socketId;
   dgLiveObjs[socketId].addListener("transcriptReceived", async (dgOutput) => {
     let dgJSON = JSON.parse(dgOutput);
-    let utterance;
-    try {
-      utterance = dgJSON.channel.alternatives[0].transcript;
-    } catch (error) {
-      console.log(
-        "WARNING: parsing dgJSON failed. Response from dgLive is:",
-        error
-      );
-      console.log(dgJSON);
-    }
-    if (utterance) {
-      globalSockets[_socketId].emit("print-transcript", utterance);
-      console.log(`NEW UTTERANCE socketId: ${_socketId}: ${utterance}`);
+    if(dgJSON.channel){
+      console.log('dgJSON', dgJSON.is_final, dgJSON.speech_final, dgJSON.channel.alternatives[0]);
+      let utterance;
+      try {
+        utterance = dgJSON.channel.alternatives[0].transcript;
+      } catch (error) {
+        console.log(
+          "WARNING: parsing dgJSON failed. Response from dgLive is:",
+          error
+        );
+        console.log(dgJSON);
+      }
+      if (utterance) {
+        if(!speechChunks[socketId]){
+          speechChunks[socketId] = '';
+        }
+        speechChunks[socketId] += utterance + ' ';
+        if(dgJSON.is_final){
+          globalSockets[_socketId].emit("print-transcript", speechChunks[socketId]);
+          console.log(`NEW UTTERANCE socketId: ${_socketId}: ${speechChunks[socketId]}`);
+          speechChunks[socketId] = '';
+        } else {
+          console.log('SpeecBuffer:', speechChunks[socketId]);
+        }
+      }
     }
   });
 };
 
 const addDeepgramOpenListener = (socketId) => {
-  dgLiveObjs[socketId].addListener("open", async (msg) =>
-    console.log(`dgLive socketId: ${socketId} WEBSOCKET CONNECTION OPEN!`)
-  );
+  dgLiveObjs[socketId].addListener("open", (msg) => {
+    console.log(`dgLive socketId: ${socketId} WEBSOCKET CONNECTION OPEN!`);
+    setInterval(()=>{
+      Object.keys(dgLiveObjs).forEach((socketId)=>{
+        dgLiveObjs[socketId].send(JSON.stringify({ 'type': 'KeepAlive' }));
+      })
+      
+    }, 3000)
+});
 };
 
 const addDeepgramCloseListener = (socketId) => {
   dgLiveObjs[socketId].addListener("close", async (msg) => {
     console.log(`dgLive socketId: ${socketId} CONNECTION CLOSED!`);
     console.log(`Reconnecting`);
-    createWebsocket();
+    dgLiveObjs[socketId] = null;
+    delete dgLiveObjs[socketId];
   });
 };
 
@@ -168,8 +240,8 @@ const dgPacketResponse = (event, socketId) => {
   }
 };
 
-console.log('Starting Server on Port ', process.env.PORT);
-httpServer.listen(process.env.PORT);
+console.log('Starting Server on Port ', PORT);
+httpServer.listen(PORT);
 
 createWebsocket();
 console.log('Running');
