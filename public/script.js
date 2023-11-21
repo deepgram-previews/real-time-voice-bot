@@ -7,6 +7,7 @@ let offset = 300;
 let scrollOverride = false;
 let recording = false;
 let socketId = null;
+let lineIndex = 0;
 const apiOrigin = "http://localhost:3000";
 const wssOrigin = "http://localhost:3000";
 
@@ -51,9 +52,15 @@ navigator.mediaDevices
         socket.emit("packet-sent", event.data);
       });
 
-      socket.addEventListener("print-transcript", (msg) => {
+      socket.addEventListener("interim-result", (msg) => {
         if(recording){
-            addText(msg, false);
+            addText(msg, false, true);
+        }
+      });
+      socket.addEventListener("speech-final", (msg) => {
+        if(recording){
+            addText(msg, false, true);
+            lineIndex++;
             promptAI(socketId, msg);
         }
       });
@@ -63,14 +70,25 @@ navigator.mediaDevices
     });
   });
 
-function addText(text, isAI){
-    let div = document.createElement('div');
-    div.innerHTML = '';
+function addText(text, isAI, replaceLine){
+    let div = document.getElementById('chat_line_'+lineIndex);
+    
+    if(!div){
+      div = document.createElement('div');
+    }
+    if(replaceLine){
+      div.innerHTML = '';
+    }
+    div.id = 'chat_line_'+lineIndex + (isAI ? '_ai' : '');
     div.className = 'response';
     div.style.color = isAI ? '#FFFFFF' : '#bd80dc';
     conversation.appendChild(div);
-    let words = text.replaceAll('\n', '<br>').split(' ');
-    loadWords(div, words, 0);
+    if(replaceLine){
+      div.innerHTML = text;
+    }else {
+      let words = text.replaceAll('\n', '<br>').split(' ');
+      loadWords(div, words, 0);
+    }
 }
 
 function loadWords(div, words, index){
@@ -92,6 +110,7 @@ async function promptAI(socketId, msg) {
 
     // Make sure to configure your OpenAI API Key in config.json for this to work
     if(data && !data.err){
+      lineIndex++;
       let reply = data.response.data.content;
       updateAudio(reply);
       addText(reply, true);
