@@ -13,6 +13,7 @@ const wssOrigin = "http://localhost:3000";
 
 var audio_file = document.getElementById("audio_file");
 let audioElm = null;
+let loadWordsTimeout = null;
 
 async function updateAudio(text){
     audioElm = document.createElement('audio');
@@ -58,6 +59,7 @@ navigator.mediaDevices
         if(recording){
             // Handle Barge In
             audioElm.pause();
+            clearTimeout(loadWordsTimeout);
             addText(msg, false, true);
         }
       });
@@ -98,7 +100,7 @@ function addText(text, isAI, replaceLine){
 function loadWords(div, words, index){
     div.innerHTML += words[index] + ' ';
     if(index < words.length-1){
-        setTimeout(()=>{
+        loadWordsTimeout = setTimeout(()=>{
             loadWords(div, words, index+1);
         }, 100);
     }
