@@ -181,8 +181,10 @@ const addDeepgramTranscriptListener = (socketId) => {
     if(dgJSON.channel){
       // console.log('dgJSON', 'is_final:', dgJSON.is_final, 'speech_final', dgJSON.speech_final, dgJSON.channel.alternatives[0]);
       let utterance;
+      let words = [];
       try {
         utterance = dgJSON.channel.alternatives[0].transcript;
+        words = words.concat(dgJSON.channel.alternatives[0].words);
       } catch (error) {
         console.log(
           "WARNING: parsing dgJSON failed. Response from dgLive is:",
@@ -196,14 +198,15 @@ const addDeepgramTranscriptListener = (socketId) => {
         }
         if(dgJSON.speech_final){
           speechChunks[socketId] += utterance + ' ';
-          globalSockets[_socketId].emit("speech-final", speechChunks[socketId]);
+          globalSockets[_socketId].emit("speech-final", {utterance: speechChunks[socketId], words});
           console.log(`SPEECH_FINAL socketId: ${_socketId}: ${speechChunks[socketId]}`);
           speechChunks[socketId] = '';
+          words = [];
         } else if(dgJSON.is_final){
           speechChunks[socketId] += utterance + ' ';
           console.log('IS_FINAL:', speechChunks[socketId]);
         } else {
-          globalSockets[_socketId].emit("interim-result", utterance);
+          globalSockets[_socketId].emit("interim-result", {utterance, words});
           console.log('INTERIM_RESULT:', utterance);
         }
         // console.log('debug:',dgJSON)

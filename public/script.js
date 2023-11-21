@@ -58,16 +58,24 @@ navigator.mediaDevices
       socket.addEventListener("interim-result", (msg) => {
         if(recording){
             // Handle Barge In
-            audioElm.pause();
+            if(audioElm){
+              audioElm.pause();
+            }
             clearTimeout(loadWordsTimeout);
-            addText(msg, false, true);
+            addText(msg.utterance, false, true);
+            // msg.words.forEach((word)=>{
+            //   addRegion(word);
+            // })
         }
       });
       socket.addEventListener("speech-final", (msg) => {
         if(recording){
-            addText(msg, false, true);
+            addText(msg.utterance, false, true);
+            // msg.words.forEach((word)=>{
+            //   addRegion(word);
+            // })
             lineIndex++;
-            promptAI(socketId, msg);
+            promptAI(socketId, msg.utterance);
         }
       });
       socket.addEventListener("socketId", (socket_id) => {
@@ -128,6 +136,7 @@ async function promptAI(socketId, msg) {
 function recordingStart(){
     recording = true;
     mic.setAttribute('src', 'mic_on.png');
+    startLiveWaveform();
 }
 
 function recordingStop(){
@@ -135,6 +144,7 @@ function recordingStop(){
         recording = false;
     }, 1000)
     mic.setAttribute('src', 'mic_off.png');
+    stopLiveWaveform();
 }
 
 function toggleRecording(){

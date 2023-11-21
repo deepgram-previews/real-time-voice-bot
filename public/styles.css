@@ -45,13 +45,22 @@ span{
     height: 200px;
 } 
 
-#content{
+#content1{
     position: fixed;
     top: 200px;
     left: 0;
+    width: calc(100% - 40px);
+    height: 200px;
+    margin-left: 20px;
+    margin-right: 20px;
+}
+#content{
+    position: fixed;
+    top: 400px;
+    left: 0;
     width: 100%;
     overflow-y: scroll;
-    height: calc(100% - 200px);
+    height: calc(100% - 400px);
 }
 
 #conversation {
