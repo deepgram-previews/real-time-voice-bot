@@ -178,10 +178,10 @@ const addDeepgramTranscriptListener = (socketId) => {
   let _socketId = socketId;
   dgLiveObjs[socketId].addListener("transcriptReceived", async (dgOutput) => {
     let dgJSON = JSON.parse(dgOutput);
+    let words = [];
     if(dgJSON.channel){
       // console.log('dgJSON', 'is_final:', dgJSON.is_final, 'speech_final', dgJSON.speech_final, dgJSON.channel.alternatives[0]);
       let utterance;
-      let words = [];
       try {
         utterance = dgJSON.channel.alternatives[0].transcript;
         words = words.concat(dgJSON.channel.alternatives[0].words);
@@ -213,7 +213,7 @@ const addDeepgramTranscriptListener = (socketId) => {
       }
     } else {
       if(speechChunks[socketId] != ''){
-        globalSockets[_socketId].emit("speech-final", speechChunks[socketId]);
+        globalSockets[_socketId].emit("speech-final", {utterance: speechChunks[socketId], words});
         console.log(`UTTERANCE_END_MS Triggered socketId: ${_socketId}: ${speechChunks[socketId]}`);
         speechChunks[socketId] = '';
       } else {
@@ -252,7 +252,7 @@ const addDeepgramErrorListener = (socketId) => {
 };
 
 const dgPacketResponse = (event, socketId) => {
-  if (dgLiveObjs[socketId].getReadyState() === 1) {
+  if (dgLiveObjs[socketId] && dgLiveObjs[socketId].getReadyState() === 1) {
     dgLiveObjs[socketId].send(event);
   }
 };
