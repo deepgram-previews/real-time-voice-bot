@@ -12,11 +12,12 @@ const apiOrigin = "http://localhost:3000";
 const wssOrigin = "http://localhost:3000";
 
 var audio_file = document.getElementById("audio_file");
+let audioElm = null;
 
 async function updateAudio(text){
-    let audio = document.createElement('audio');
-    audio.setAttribute('controls', '');
-    audio.setAttribute('autoplay', 'true');
+    audioElm = document.createElement('audio');
+    audioElm.setAttribute('controls', '');
+    audioElm.setAttribute('autoplay', 'true');
     let source = document.createElement('source');
 
     let response = await getAudioForText(text);
@@ -26,10 +27,11 @@ async function updateAudio(text){
 
     source.setAttribute('type', 'audio/mp3');
 
-    audio.appendChild(source);
+    audioElm.appendChild(source);
 
     audio_file.innerHTML = '';
-    audio_file.appendChild(audio);
+    audio_file.appendChild(audioElm);
+    audioElm.play();
 }
 
 async function getAudioForText(text){
@@ -54,6 +56,8 @@ navigator.mediaDevices
 
       socket.addEventListener("interim-result", (msg) => {
         if(recording){
+            // Handle Barge In
+            audioElm.pause();
             addText(msg, false, true);
         }
       });
