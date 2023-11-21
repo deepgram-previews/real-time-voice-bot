@@ -71,8 +71,8 @@ const createNewDeepgramLive = (dg) => {
     model: "nova",
     interim_results: true,
     endpointing: 100,
-    no_delay: true
-    // utterance_end_ms: 1000
+    no_delay: true,
+    utterance_end_ms: 1000
   });
 };
 
@@ -206,7 +206,15 @@ const addDeepgramTranscriptListener = (socketId) => {
           globalSockets[_socketId].emit("interim-result", utterance);
           console.log('INTERIM_RESULT:', utterance);
         }
-        console.log('debug:',dgJSON)
+        // console.log('debug:',dgJSON)
+      }
+    } else {
+      if(speechChunks[socketId] != ''){
+        globalSockets[_socketId].emit("speech-final", speechChunks[socketId]);
+        console.log(`UTTERANCE_END_MS Triggered socketId: ${_socketId}: ${speechChunks[socketId]}`);
+        speechChunks[socketId] = '';
+      } else {
+        console.log(`UTTERANCE_END_MS Not Triggered socketId: ${_socketId}: ${speechChunks[socketId]}`);
       }
     }
   });
