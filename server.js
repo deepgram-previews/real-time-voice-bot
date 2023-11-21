@@ -66,12 +66,13 @@ const createNewDeepgram = () => {
 
 const createNewDeepgramLive = (dg) => {
   return dg.transcription.live({
-    language: "en",
-    punctuate: true,
+    language: "en-US",
     smart_format: true,
     model: "nova",
-    interim_results: false,
-    endpointing: false
+    interim_results: true,
+    endpointing: 100,
+    no_delay: true
+    // utterance_end_ms: 1000
   });
 };
 
@@ -91,7 +92,7 @@ app.get("/chat", async (req, res) => {
   let model = req.query.model;
   let message = req.query.message;
   let socketId = req.query.socketId;
-  console.log('message',message);
+  // console.log('message',message);
 
   try {
     let response = await promptAI(socketId, model, message);
@@ -178,7 +179,7 @@ const addDeepgramTranscriptListener = (socketId) => {
   dgLiveObjs[socketId].addListener("transcriptReceived", async (dgOutput) => {
     let dgJSON = JSON.parse(dgOutput);
     if(dgJSON.channel){
-      console.log('dgJSON', dgJSON.is_final, dgJSON.speech_final, dgJSON.channel.alternatives[0]);
+      // console.log('dgJSON', 'is_final:', dgJSON.is_final, 'speech_final', dgJSON.speech_final, dgJSON.channel.alternatives[0]);
       let utterance;
       try {
         utterance = dgJSON.channel.alternatives[0].transcript;
@@ -193,14 +194,19 @@ const addDeepgramTranscriptListener = (socketId) => {
         if(!speechChunks[socketId]){
           speechChunks[socketId] = '';
         }
-        speechChunks[socketId] += utterance + ' ';
-        if(dgJSON.is_final){
-          globalSockets[_socketId].emit("print-transcript", speechChunks[socketId]);
-          console.log(`NEW UTTERANCE socketId: ${_socketId}: ${speechChunks[socketId]}`);
+        if(dgJSON.speech_final){
+          speechChunks[socketId] += utterance + ' ';
+          globalSockets[_socketId].emit("speech-final", speechChunks[socketId]);
+          console.log(`SPEECH_FINAL socketId: ${_socketId}: ${speechChunks[socketId]}`);
           speechChunks[socketId] = '';
+        } else if(dgJSON.is_final){
+          speechChunks[socketId] += utterance + ' ';
+          console.log('IS_FINAL:', speechChunks[socketId]);
         } else {
-          console.log('SpeecBuffer:', speechChunks[socketId]);
+          globalSockets[_socketId].emit("interim-result", utterance);
+          console.log('INTERIM_RESULT:', utterance);
         }
+        console.log('debug:',dgJSON)
       }
     }
   });
