@@ -89,6 +89,6 @@ span{
   text-align: center;
     position: fixed;
     top: 166px;
-    left: calc(50% - 140px);
+    left: calc(50% - 40px);
     height: 20px;
 }
