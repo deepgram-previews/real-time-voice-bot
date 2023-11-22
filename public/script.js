@@ -129,6 +129,7 @@ async function promptAI(socketId, msg) {
       updateAudio(reply);
       addText(reply, true);
     } else {
+      console.log(data.err);
       alert('Error: You must configure your OpenAI API Key in the config.json to use the "Respond with AI" feature.');
     }
 }
