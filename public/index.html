@@ -1,30 +1,30 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <link rel="stylesheet" type="text/css" href="styles.css">
-        <script
-            src="https://cdn.socket.io/4.5.3/socket.io.min.js"
-            integrity="sha384-WPFUvHkB1aHA5TDSZi6xtDgkF0wXJcIIxXhC6h8OT8EH3fC5PWro5pWJ1THjcfEi"
-            crossorigin="anonymous"
-            ></script>
-        
-        <script src="https://unpkg.com/wavesurfer.js@7"></script>
-        <script src="https://unpkg.com/wavesurfer.js@7.4.6/dist/plugins/record.min.js"></script>
-        <script src="https://unpkg.com/wavesurfer.js@7.4.6/dist/plugins/regions.min.js"></script>
-    </head>
-    <body>
-        <div id="main">
-            <div class="hero">
-                <img class="logo" src="logo.svg">
-            </div>
-            <div id="content1">
-                <h3 style="margin-top: 16px;text-align: center;">For entertainment purposes only</h3>
-                <div id="mic"></div>
-            </div>
-            <div id="content">
-                <br>
-                <div class="centered">
-                  <select id="model" onchange="modelChanged()">
+
+<head>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+    <script src="https://cdn.socket.io/4.5.3/socket.io.min.js"
+        integrity="sha384-WPFUvHkB1aHA5TDSZi6xtDgkF0wXJcIIxXhC6h8OT8EH3fC5PWro5pWJ1THjcfEi"
+        crossorigin="anonymous"></script>
+
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7.4.6/dist/plugins/record.min.js"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7.4.6/dist/plugins/regions.min.js"></script>
+</head>
+
+<body>
+    <div id="main">
+        <div class="hero">
+            <img class="logo" src="logo.svg">
+        </div>
+        <div id="content1">
+            <h3 style="margin-top: 16px;text-align: center;">For entertainment purposes only</h3>
+            <div id="mic"></div>
+        </div>
+        <div id="content">
+            <br>
+            <div class="centered">
+                <select id="model" onchange="modelChanged()">
                     <option value="listener">Listener</option>
                     <option value="medic">Medic</option>
                     <option value="therapist">Therapist</option>
@@ -33,21 +33,22 @@
                     <option value="recipes">Recipes</option>
                     <option value="songwriter">Songwriter</option>
                     <option value="deepgram">Deepgram</option>
-                  </select>
-                </div>
-                <div id="conversation">
-                    
-                </div>
-                <div class="spacer">&nbsp;</div>
+                </select>
             </div>
-            <div class="gradientback"></div>
-        </div>
-        <div class="recorder" onclick="toggleRecording()">
-            <img id="mic" src="mic_off.png" width="50px">
-            <div id="audio_file" style="display: none;">
+            <div id="conversation">
+
             </div>
+            <div class="spacer">&nbsp;</div>
         </div>
-        <script src="script.js"></script>
-        <script src="waveform.js"></script>
-    </body>
+        <div class="gradientback"></div>
+    </div>
+    <div class="recorder" onclick="toggleRecording()">
+        <img id="mic-button" src="mic_off.png" width="50px" class="disabled">
+        <div id="audio_file" style="display: none;">
+        </div>
+    </div>
+    <script src="script.js"></script>
+    <script src="waveform.js"></script>
+</body>
+
 </html>

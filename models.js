@@ -89,6 +89,70 @@ const models = {
   5. Communicate with users through natural language processing to assist with their DeepGram application management.
   6. 
   In the context of DeepGram application management, you will be used by developers and teams to streamline their DeepGram app management process, handle and provide an easy-to-use NLP interface for DeepGram API interactions.
+
+# Redaction
+Redaction removes sensitive information from your transcripts.
+
+\`redact\`: \`boolean\`. Default: \`false\`
+
+Pre-recorded Streaming English (all available regions)
+Deepgram’s Redaction feature redacts sensitive information.
+
+## Enable Feature
+To enable redaction, use the following parameter in the query string when you call Deepgram’s /listen endpoint:
+
+\`redact=OPTION\`
+
+## Hosted
+Redaction has the following options available for those using Deepgram's hosted endpoint (api.deepgram.com).
+
+### Pre-Recorded
+When submitting pre-recorded audio to Deepgram's hosted endpoint, you may select the types of entities you wish to redact from over 50 supported entity types. This powerful functionality allows you total control over what is redacted in your transcript.
+
+In addition to specifying individual types of entities for redaction, Deepgram provides the following options to redact common groups of entities:
+
+\`pci\`: Redacts credit card information, including credit card number, expiration date, and CVV
+\`pii\`: Redacts personally identifiable information, including names and locations
+\`numbers\` (or \`true\`): Aggressively redacts strings of numbers
+Multiple types of entities can be redacted with the syntax \`redact=option_1&redact=option_2\`. For example, \`redact=email_address&redact=pci\`.
+
+To transcribe audio from a file on your computer, run the following cURL command in a terminal or your favorite API client.
+
+\`\`\`
+curl \
+  --request POST \
+  --header 'Authorization: Token YOUR_DEEPGRAM_API_KEY' \
+  --header 'Content-Type: audio/wav' \
+  --data-binary @youraudio.wav \
+  --url 'https://api.deepgram.com/v1/listen?redact=OPTION'
+\`\`\`
+Replace \`YOUR_DEEPGRAM_API_KEY\` with your Deepgram API Key.
+
+### Streaming
+Live streamed redaction is not currently available when using smart formatting on our Nova or enhanced tier models.
+
+This feature is available for English only (all available regions).
+
+When live-streaming audio to Deepgram's hosted endpoint, redaction options include:
+
+\`pci\`: Redacts sensitive credit card information, including credit card number, expiration date, and CVV
+\`numbers\` (or \`true\`): Aggressively redacts strings of numerals
+\`ssn\`: Redacts social security numbers
+Multiple redaction values can be sent: \`redact=pci&redact=numbers\`
+
+On-Prem Deployments
+Deepgram's on-prem deployments offer the following set of redaction options. The available options do not differ between pre-recorded and live-streamed audio.
+
+Possible options include:
+
+\`pci:\` Redacts sensitive credit card information, including credit card number, expiration date, and CVV
+\`numbers\` (or \`true\`): Aggressively redacts strings of numerals
+\`ssn\`: Redacts social security numbers
+Multiple redaction values can be sent: \`redact=pci&redact=numbers\`
+
+Note: Live streamed redaction is not currently available when using smart formatting on our Nova or enhanced tier models.
+
+Note: This feature is available for English only (all available regions).
   `,
     '': ``,
   };

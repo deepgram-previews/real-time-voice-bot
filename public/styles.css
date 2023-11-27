@@ -1,18 +1,19 @@
-*{
+* {
     margin: 0;
     padding: 0;
-    box-sizing: border-box; 
+    box-sizing: border-box;
     font-family: sans-serif;
     font-weight: 200;
     letter-spacing: -0.05em;
 }
 
-html, body{
+html,
+body {
     background-color: #000000;
     color: #eed8ff;
 }
 
-header{
+header {
     position: relative;
     height: 80px;
     display: flex;
@@ -25,27 +26,28 @@ header{
     padding: 0 5%;
 }
 
-span{
+span {
     opacity: 0.1;
 }
 
-#bottom{
+#bottom {
     margin-bottom: 100vh;
 }
 
-.logo{
+.logo {
     max-height: 200px;
 }
-.hero{
+
+.hero {
     text-align: center;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 200px;
-} 
+}
 
-#content1{
+#content1 {
     position: fixed;
     top: 200px;
     left: 0;
@@ -54,7 +56,8 @@ span{
     margin-left: 20px;
     margin-right: 20px;
 }
-#content{
+
+#content {
     position: fixed;
     top: 400px;
     left: 0;
@@ -68,25 +71,30 @@ span{
     max-width: 800px;
 }
 
-.spacer{
+.spacer {
     height: 200px;
 }
 
-.recorder{
+.recorder {
     position: absolute;
     bottom: 0px;
     margin-left: calc(50% - 50px);
     cursor: pointer;
 }
 
-#mic{
+#mic,
+#mic-button {
     border: solid 1px #b68fe1;
     border-radius: 30px;
     padding: 10px;
 }
 
-.centered{
-  text-align: center;
+.disabled {
+    opacity: 0.3;
+}
+
+.centered {
+    text-align: center;
     position: fixed;
     top: 166px;
     left: calc(50% - 40px);
