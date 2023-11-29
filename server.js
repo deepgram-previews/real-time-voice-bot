@@ -8,70 +8,56 @@ import { Server } from "socket.io";
 import { ChatOpenAI } from "langchain/chat_models/openai";
 import { ConversationChain } from "langchain/chains";
 import { BufferMemory } from "langchain/memory";
-import { ChatPromptTemplate, SystemMessagePromptTemplate } from "langchain/prompts";
+// import { ChatPromptTemplate, SystemMessagePromptTemplate } from 'langchain/prompts';
 import models from "./models.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const { Deepgram } = pkg;
-let deepgrams = {};
-let socket;
-let dgLiveObjs = {};
-let globalSockets = {};
-let openAIChats = {};
-let TTS_API = 'https://api.beta.deepgram.com/v1/speak';
-let PORT = 3000;
+let socket = null;
+let stt = null;
+let globalSocket = null;
+let chatbot = null;
 let micOn = false;
-let websocketReady = false;
-let keepAliveMessage = (new TextEncoder()).encode('{"type":"KeepAlive"}');
-let lastMessageSent = 0;
+let chatClientReady = false;
+let lastMessageSentToDG = 0;
 let gotOneResponseFromDG = false;
+let speechChunk = null;
 
-async function promptAI(socketId, message) {
+function resetToInitialState() {
+  if (globalSocket) {
+    globalSocket.removeAllListeners();
+  }
+  if (stt) {
+    stt.removeAllListeners();
+  }
+  socket = null;
+  stt = null;
+  globalSocket = null;
+  chatbot = null;
+  micOn = false;
+  chatClientReady = false;
+  lastMessageSentToDG = 0;
+  gotOneResponseFromDG = false;
+  speechChunk = null;
+}
+
+async function promptAI(message) {
   if (message === undefined || message === 'undefined') {
     console.log("message is undefined");
     return;
   }
   // console.log('message: ', message);
   message += "\n\nKeep your response short.";
-  const response = await openAIChats[socketId].call({ input: message });
+  const response = await chatbot.call({ input: message });
   // console.log('response: ', response);
   return response;
 }
 
-async function readAllChunks(readableStream) {
-  const reader = readableStream.getReader();
-  const chunks = [];
-
-  let done, value;
-  while (!done) {
-    ({ value, done } = await reader.read());
-    if (done) {
-      return chunks;
-    }
-    chunks.push(value);
-  }
-}
-
-async function getTextToSpeech(message) {
-  const response = await fetch(TTS_API, {
-    method: 'POST',
-    headers: {
-      'authorization': `token ${process.env.DEEPGRAM_API_KEY}`,
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({ text: message })
-  });
-  return response.blob();
-}
-
-const createNewDeepgram = () => {
-  return new Deepgram(process.env.DEEPGRAM_API_KEY);
-};
-
-const createNewDeepgramLive = (dg) => {
-  return dg.transcription.live({
+const initializeSTT = () => {
+  const dg = new Deepgram(process.env.DEEPGRAM_API_KEY);
+  stt = dg.transcription.live({
     language: "en-US",
     smart_format: true,
     model: "nova",
@@ -82,6 +68,19 @@ const createNewDeepgramLive = (dg) => {
   });
 };
 
+async function getTextToSpeech(message) {
+  const tts_api = 'https://api.beta.deepgram.com/v1/speak';
+  const response = await fetch(tts_api, {
+    method: 'POST',
+    headers: {
+      'authorization': `token ${process.env.DEEPGRAM_API_KEY}`,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({ text: message })
+  });
+  return response.blob();
+}
+
 const app = express();
 app.use(express.static("public/"));
 
@@ -91,9 +90,10 @@ app.get("/", function (req, res) {
 
 app.get("/new", async (req, res) => {
   let model = req.query.model;
+  resetToInitialState();
   createWebsocket(model);
   let interval = setInterval(() => {
-    if (websocketReady) {
+    if (chatClientReady) {
       clearInterval(interval);
       res.status(200).send();
     }
@@ -119,10 +119,9 @@ app.get("/chat", async (req, res) => {
     return;
   }
   let message = req.query.message;
-  let socketId = req.query.socketId;
 
   try {
-    let response = await promptAI(socketId, message);
+    let response = await promptAI(message);
 
     res.send({ response });
   } catch (err) {
@@ -159,18 +158,15 @@ app.get("/speak", async (req, res) => {
 const httpServer = createServer(app);
 
 // Pull out connection logic so we can call it outside of the socket connection event
-const initDgConnection = (socketId) => {
-  if (!deepgrams[socketId]) {
-    deepgrams[socketId] = createNewDeepgram();
-  }
-  dgLiveObjs[socketId] = createNewDeepgramLive(deepgrams[socketId]);
-  addDeepgramTranscriptListener(socketId);
-  addDeepgramOpenListener(socketId);
-  addDeepgramCloseListener(socketId);
-  addDeepgramErrorListener(socketId);
+const initDgConnection = () => {
+  initializeSTT();
+  addDeepgramTranscriptListener();
+  addDeepgramOpenListener();
+  addDeepgramCloseListener();
+  addDeepgramErrorListener();
   // receive data from client and send to dgLive
-  globalSockets[socketId].on("packet-sent", async (event) =>
-    dgPacketResponse(event, socketId)
+  globalSocket.on("packet-sent", async (event) =>
+    dgPacketResponse(event)
   );
 };
 
@@ -181,52 +177,42 @@ const createWebsocket = (model) => {
       cors: {}
     });
     socket.on("connection", (clientSocket) => {
-      let socketId = clientSocket.id;
-      // console.log(`Connected on server side with ID: ${socketId}`);
-      globalSockets[socketId] = clientSocket;
+      globalSocket = clientSocket;
 
       if (process.env.OPEN_AI_API_KEY) {
         console.log("Creating new websocket for model '" + model + "'");
-        websocketReady = false;
-        let prompt_ = ChatPromptTemplate.fromPromptMessages([
+        chatClientReady = false;
+        /*let prompt_ = ChatPromptTemplate.fromPromptMessages([
           SystemMessagePromptTemplate.fromTemplate(models[model]),
-        ]);
+        ]);*/
         let llm = new ChatOpenAI({ openAIApiKey: process.env.OPEN_AI_API_KEY, temperature: 0 });
         let memory = new BufferMemory();
-        // let conversation = new ConversationChain({llm: llm, memory: memory, prompt: prompt_});
-        let conversation = new ConversationChain({ llm: llm, memory: memory });
-        openAIChats[socketId] = conversation;
+        // conversation = new ConversationChain({ llm: llm, memory: memory, prompt: prompt_ });
+        chatbot = new ConversationChain({ llm: llm, memory: memory });
         // send the prompt as the initial message
-        openAIChats[socketId].call({ input: models[model] }).then(() => {
-          // console.log("websocket is ready", socketId);
+        chatbot.call({ input: models[model] }).then(() => {
           console.log("websocket is ready");
-          websocketReady = true;
+          chatClientReady = true;
         });
       } else {
         throw new Error("Must set OPEN_AI_API_KEY");
       }
 
-      initDgConnection(socketId);
+      initDgConnection();
       socket.on('disconnect', () => {
-        console.log('User disconnected.', socketId);
-        globalSockets[socketId].removeAllListeners();
-        delete globalSockets[socketId];
-        dgLiveObjs[socketId].removeAllListeners();
-        delete dgLiveObjs[socketId];
-        delete openAIChats[socketId];
-        delete speechChunks[socketId];
+        console.log('User disconnected.');
+        resetToInitialState();
       });
 
-      globalSockets[socketId].emit("socketId", socketId);
+      globalSocket.emit("socketId", clientSocket.id);
     });
   }
 };
 
-let speechChunks = {};
-const addDeepgramTranscriptListener = (socketId) => {
-  let _socketId = socketId;
-  dgLiveObjs[socketId].addListener("transcriptReceived", async (dgOutput) => {
+const addDeepgramTranscriptListener = () => {
+  stt.addListener("transcriptReceived", async (dgOutput) => {
     let dgJSON = JSON.parse(dgOutput);
+    // console.log('debug:', dgJSON)
     let words = [];
     if (dgJSON.channel) {
       if (dgJSON.channel.alternatives[0].transcript !== '') {
@@ -240,76 +226,69 @@ const addDeepgramTranscriptListener = (socketId) => {
         utterance = dgJSON.channel.alternatives[0].transcript;
         words = words.concat(dgJSON.channel.alternatives[0].words);
       } catch (error) {
-        console.log(
-          "WARNING: parsing dgJSON failed. Response from dgLive is:",
-          error
-        );
+        console.log("WARNING: parsing dgJSON failed. Response from Deepgram is:", error);
       }
       if (utterance) {
-        if (!speechChunks[socketId]) {
-          speechChunks[socketId] = '';
+        if (!speechChunk) {
+          speechChunk = '';
         }
         if (dgJSON.speech_final) {
-          speechChunks[socketId] += utterance + ' ';
-          globalSockets[_socketId].emit("speech-final", { utterance: speechChunks[socketId], words });
-          // console.log(`SPEECH_FINAL socketId: ${_socketId}: ${speechChunks[socketId]}`);
-          speechChunks[socketId] = '';
+          speechChunk += utterance + ' ';
+          globalSocket.emit("speech-final", { utterance: speechChunk, words });
+          // console.log(`SPEECH_FINAL: ${speechChunk}`);
+          speechChunk = '';
           words = [];
         } else if (dgJSON.is_final) {
-          speechChunks[socketId] += utterance + ' ';
-          // console.log('IS_FINAL:', speechChunks[socketId]);
+          speechChunk += utterance + ' ';
+          // console.log('IS_FINAL:', speechChunk);
         } else {
-          globalSockets[_socketId].emit("interim-result", { utterance, words });
+          globalSocket.emit("interim-result", { utterance, words });
           // console.log('INTERIM_RESULT:', utterance);
         }
-        // console.log('debug:',dgJSON)
       }
     } else {
-      if (speechChunks[socketId] !== undefined && speechChunks[socketId] !== '') {
-        globalSockets[_socketId].emit("speech-final", { utterance: speechChunks[socketId], words });
-        // console.log(`UTTERANCE_END_MS Triggered socketId: ${_socketId}: ${speechChunks[socketId]}`);
+      if (speechChunk !== undefined && speechChunk !== '') {
+        globalSocket.emit("speech-final", { utterance: speechChunk, words });
+        // console.log(`UTTERANCE_END_MS Triggered: ${speechChunk}`);
         console.log('Got `UtteranceEnd` message, considering last transcript to be "final"');
-        speechChunks[socketId] = '';
+        speechChunk = '';
       } else {
-        // console.log(`UTTERANCE_END_MS Not Triggered socketId: ${_socketId}: ${speechChunks[socketId]}`);
+        // console.log(`UTTERANCE_END_MS Not Triggered: ${speechChunk}`);
       }
     }
     gotOneResponseFromDG = true;
   });
 };
 
-const addDeepgramOpenListener = (socketId) => {
-  dgLiveObjs[socketId].addListener("open", (msg) => {
-    // console.log(`dgLive socketId: ${socketId} WEBSOCKET CONNECTION OPEN!`);
+const addDeepgramOpenListener = () => {
+  stt.addListener("open", (msg) => {
+    // console.log(`Deepgram websocket: CONNECTION OPEN!`);
   });
 };
 
-const addDeepgramCloseListener = (socketId) => {
-  dgLiveObjs[socketId].addListener("close", async (msg) => {
-    console.log(`dgLive socketId: ${socketId} CONNECTION CLOSED!`);
-    // console.log(`Reconnecting`);
-    dgLiveObjs[socketId] = null;
-    delete dgLiveObjs[socketId];
+const addDeepgramCloseListener = () => {
+  stt.addListener("close", async (msg) => {
+    console.log(`Deepgram websocket: CONNECTION CLOSED!`);
+    stt = null;
   });
 };
 
-const addDeepgramErrorListener = (socketId) => {
-  dgLiveObjs[socketId].addListener("error", async (msg) => {
+const addDeepgramErrorListener = () => {
+  stt.addListener("error", async (msg) => {
     console.log("ERROR MESG", msg);
-    // console.log(`dgLive socketId: ${socketId} ERROR::Type:${msg.type} / Code:${msg.code}`);
+    // console.log(`Deepgram websocket ERROR::Type:${msg.type} / Code:${msg.code}`);
   });
 };
 
-const dgPacketResponse = (event, socketId) => {
-  if (dgLiveObjs[socketId] && dgLiveObjs[socketId].getReadyState() === 1) {
-    // dgLiveObjs[socketId].send(event);
-    // console.log("sent audio to DG");
+const dgPacketResponse = (event) => {
+  if (stt && stt.getReadyState() === 1) {
     if ((!gotOneResponseFromDG) || (micOn && event.length !== 126)) {
-      dgLiveObjs[socketId].send(event);
-      lastMessageSent = Date.now();
+      stt.send(event);
+      lastMessageSentToDG = Date.now();
       // console.log("sent audio to DG");
     } else {
-      sendKeepAlive(dgLiveObjs[socketId]);
+      // This method gets triggered every ~0.5 seconds so we can use it as an interval to send keep alives
+      sendKeepAlive(stt);
     }
   } else {
     // console.log("did not send audio to DG", micOn);
@@ -317,8 +296,8 @@ const dgPacketResponse = (event, socketId) => {
 };
 
 const sendKeepAlive = (dgLive) => {
-  if (Date.now() - lastMessageSent > 8000 && gotOneResponseFromDG) {
-    lastMessageSent = Date.now();
+  if (Date.now() - lastMessageSentToDG > 8000 && gotOneResponseFromDG) {
+    lastMessageSentToDG = Date.now();
     dgLive._socket.send(
       JSON.stringify({
         type: "KeepAlive"
@@ -328,6 +307,7 @@ const sendKeepAlive = (dgLive) => {
   }
 }
 
+const PORT = 3000;
 console.log('Starting Server on Port ', PORT);
 httpServer.listen(PORT);
 
