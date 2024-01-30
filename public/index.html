@@ -25,6 +25,7 @@
                 <br>
                 <div class="centered">
                   <select id="model" onchange="modelChanged()">
+                    <option selected hidden value="listener">Theme</option>
                     <option value="listener">Listener</option>
                     <option value="medic">Medic</option>
                     <option value="therapist">Therapist</option>
@@ -33,6 +34,13 @@
                     <option value="recipes">Recipes</option>
                     <option value="songwriter">Songwriter</option>
                     <option value="deepgram">Deepgram</option>
+                  </select>
+
+                  <select id="voice">
+                    <option selected hidden value="alpha-asteria-en-v2">TTS Voice</option>
+                    <option value="alpha-asteria-en-v2">Asteria</option>
+                    <option value="alpha-stella-en-v2">Stella</option>
+                    <option value="alpha-atlas-en-v3">Atlas</option>
                   </select>
                 </div>
                 <div id="conversation">

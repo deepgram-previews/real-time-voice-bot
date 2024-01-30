@@ -48,8 +48,9 @@ async function readAllChunks(readableStream) {
   }
 }
 
-async function getTextToSpeech(message){
-  const response = await fetch(TTS_API, {
+async function getTextToSpeech(message, voice){
+  const tts_endpoint = TTS_API + '?model='+ voice;
+  const response = await fetch(tts_endpoint, {
     method: 'POST',
     headers: {
       'authorization': `token ${process.env.DEEPGRAM_API_KEY}`,
@@ -111,9 +112,10 @@ app.get("/speak", async (req, res) => {
     return;
   }
   let text = req.query.text;
+  let voice = req.query.voice;
 
   try {
-    let response = await getTextToSpeech(text);
+    let response = await getTextToSpeech(text, voice);
 
     res.type(response.type)
     response.arrayBuffer().then((buf) => {
@@ -179,7 +181,7 @@ const addDeepgramTranscriptListener = (socketId) => {
   dgLiveObjs[socketId].addListener("transcriptReceived", async (dgOutput) => {
     let dgJSON = JSON.parse(dgOutput);
     let words = [];
-    if(dgJSON.channel){
+    if(dgJSON.channel && dgJSON.channel.alternatives){
       // console.log('dgJSON', 'is_final:', dgJSON.is_final, 'speech_final', dgJSON.speech_final, dgJSON.channel.alternatives[0]);
       let utterance;
       try {

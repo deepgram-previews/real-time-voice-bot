@@ -15,13 +15,13 @@ var audio_file = document.getElementById("audio_file");
 let audioElm = null;
 let loadWordsTimeout = null;
 
-async function updateAudio(text){
+async function updateAudio(text, voice){
     audioElm = document.createElement('audio');
     audioElm.setAttribute('controls', '');
     audioElm.setAttribute('autoplay', 'true');
     let source = document.createElement('source');
 
-    let response = await getAudioForText(text);
+    let response = await getAudioForText(text, voice);
     let data = await response.blob();
     const url = URL.createObjectURL(data);
     source.setAttribute('src', url);
@@ -35,8 +35,8 @@ async function updateAudio(text){
     audioElm.play();
 }
 
-async function getAudioForText(text){
-    const url = apiOrigin + '/speak?text=' + text;
+async function getAudioForText(text, voice){
+    const url = apiOrigin + '/speak?text=' + text + '&voice=' + voice;
 
     return await fetch(url)
 }
@@ -116,7 +116,8 @@ function loadWords(div, words, index){
 
 async function promptAI(socketId, msg) {
     let model = document.getElementById('model').value;
-    const response = await fetch(`${apiOrigin}/chat?socketId=${socketId}&model=${model}&message=${encodeURIComponent(msg)}`, {
+    let voice = document.getElementById('voice').value;
+    const response = await fetch(`${apiOrigin}/chat?socketId=${socketId}&model=${model}&voice=${voice}&message=${encodeURIComponent(msg)}`, {
       method: "GET"
     });
 
@@ -126,7 +127,7 @@ async function promptAI(socketId, msg) {
     if(data && !data.err){
       lineIndex++;
       let reply = data.response.data.content;
-      updateAudio(reply);
+      updateAudio(reply, voice);
       addText(reply, true);
     } else {
       console.log(data.err);
