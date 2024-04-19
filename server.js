@@ -18,7 +18,7 @@ let socket;
 let dgLiveObjs = {};
 let globalSockets = {};
 let openAIChats = {};
-let TTS_API = 'https://api.beta.deepgram.com/v1/speak';
+let TTS_API = 'https://api.deepgram.com/v1/speak';
 let PORT = 3000;
 
 async function promptAI(socketId, model, message){
@@ -49,6 +49,7 @@ async function readAllChunks(readableStream) {
 }
 
 async function getTextToSpeech(message, voice){
+  // console.log('voice: ', voice)
   const tts_endpoint = TTS_API + '?model='+ voice;
   const response = await fetch(tts_endpoint, {
     method: 'POST',
@@ -69,7 +70,7 @@ const createNewDeepgramLive = (dg) => {
   return dg.transcription.live({
     language: "en-US",
     smart_format: true,
-    model: "nova",
+    model: "nova",  
     interim_results: true,
     endpointing: 100,
     no_delay: true,
